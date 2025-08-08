@@ -1,21 +1,43 @@
-# Step 1: Use a JDK base image
-FROM eclipse-temurin:23-jdk-alpine
+# ==============================
+# Stage 1: Build the application
+# ==============================
+FROM eclipse-temurin:23-jdk-alpine AS builder
 
-# Step 2: Set a working directory
+# Set working directory
 WORKDIR /app
 
-# Step 3: Copy Maven/Gradle build file and download dependencies
-COPY pom.xml .
+# Copy Maven wrapper & settings
 COPY mvnw .
 COPY .mvn .mvn
+
+# Make mvnw executable
+RUN chmod +x mvnw
+
+# Copy pom.xml first to cache dependencies
+COPY pom.xml .
+
+# Download dependencies
 RUN ./mvnw dependency:go-offline -B
 
-# Step 4: Copy the source code
+# Copy the rest of the project
 COPY src ./src
 
-# Step 5: Build the Spring Boot application
-RUN ./mvnw package -DskipTests
+# Build the jar (skip tests for speed)
+RUN ./mvnw clean package -DskipTests
 
-# Step 6: Run the application
-# Replace 'WeatherAppBasicApplication.jar' with the actual jar name in target/
-CMD ["java", "-jar", "target/WeatherAppBasicApplication-0.0.1-SNAPSHOT.jar"]
+# ==============================
+# Stage 2: Run the application
+# ==============================
+FROM eclipse-temurin:23-jre-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy jar from builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Expose application port
+EXPOSE 8080
+
+# Run the jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
