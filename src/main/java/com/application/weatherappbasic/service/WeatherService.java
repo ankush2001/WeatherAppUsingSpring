@@ -10,22 +10,34 @@ import java.util.*;
 @Service
 public class WeatherService {
 
-    @Value("${openweather.api.key}")
+    @Value("${open_weather.api.key}")
     private String apiKey ;
 
     private final RestTemplate restTemplate = new RestTemplate() ;
 
-    public WeatherSummary  getWeatherByCity(String city){
+    public WeatherSummary  getWeatherByCity(String city)  {
         String url = "https://api.openweathermap.org/data/2.5/weather?q="
                 + city + "&appid=" + apiKey + "&units=metric";
-       Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+
+        Map<String, Object> response ;
+
+         try {
+              response = restTemplate.getForObject(url, Map.class);
+            if (response == null || response.isEmpty()) {
+                throw new IllegalArgumentException("No data found for city: " + city);
+            }
+         } catch (Exception e) {
+            throw new IllegalArgumentException("No data found for city: " + city);
+         }
 
        Map<String, Object> main = (Map<String, Object>) response.get("main");
        Map<String, Object> wind = (Map<String, Object>) response.get("wind");
        Map<String, Object> sys = (Map<String, Object>) response.get("sys");
-       Map<String, Object> weather = ((java.util.List<Map<String,Object>>)response.get("weather")).get(0);
+       List<Map<String, Object>> weatherList = safeGetList(response);
+        Map<String, Object> weather = weatherList.isEmpty() ? Collections.emptyMap() : weatherList.get(0);
 
-       return new WeatherSummary(
+
+        return new WeatherSummary(
                (String) response.get("name"),
                (String) sys.get("country"),
                (String) weather.get("description"),
@@ -36,7 +48,16 @@ public class WeatherService {
 
     }
 
-
+    private List<Map<String, Object>> safeGetList(Map<String, Object> response) {
+        Object value = response.get("weather");
+        if (value instanceof List) {
+            return (List<Map<String, Object>>) value;
+        } else if (value instanceof Map) {
+            return Collections.singletonList((Map<String, Object>) value);
+        } else {
+            return Collections.emptyList();
+        }
+    }
 
 
 }
