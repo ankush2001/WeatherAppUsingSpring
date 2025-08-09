@@ -1,6 +1,8 @@
 package com.application.weatherappbasic.service;
 
 import com.application.weatherappbasic.dto.WeatherSummary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -14,6 +16,7 @@ public class WeatherService {
     private String apiKey ;
 
     private final RestTemplate restTemplate = new RestTemplate() ;
+    Logger logger = LoggerFactory.getLogger(WeatherService.class);
 
     public WeatherSummary  getWeatherByCity(String city)  {
         String url = "https://api.openweathermap.org/data/2.5/weather?q="
@@ -27,15 +30,15 @@ public class WeatherService {
                 throw new IllegalArgumentException("No data found for city: " + city);
             }
          } catch (Exception e) {
-            throw new IllegalArgumentException("No data found for city: " + city);
+            throw new IllegalArgumentException("Something went wrong while fetching weather data for city: " + city, e);
          }
+        logger.info("Weather data for city: {} - {}", city, response);
 
        Map<String, Object> main = (Map<String, Object>) response.get("main");
        Map<String, Object> wind = (Map<String, Object>) response.get("wind");
        Map<String, Object> sys = (Map<String, Object>) response.get("sys");
        List<Map<String, Object>> weatherList = safeGetList(response);
         Map<String, Object> weather = weatherList.isEmpty() ? Collections.emptyMap() : weatherList.get(0);
-
 
         return new WeatherSummary(
                (String) response.get("name"),
